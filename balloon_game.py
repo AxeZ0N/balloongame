@@ -4,58 +4,59 @@ import random
 pygame.init()
 
 size = width, height = 1920, 1080
-start_speed = 1
-speed = [start_speed, start_speed]
+speed = [1,1]
 
 ball_r = 35
 
 screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
 pygame.mouse.set_visible(False)
 
-ball = pygame.Surface((ball_r*2, ball_r*2), pygame.SRCALPHA)
-pygame.draw.circle(ball, "white", (ball.width // 2, ball.height // 2), ball_r)
-ballrect = ball.get_rect()
+run_main = True
 
-main_loop_running = True
+class Ball(pygame.sprite.Sprite):
+    """A ball that will move across the screen
+    Returns: ball object
+    Functions: update, calcnewpos
+    Attributes: area, vector"""
 
-running_away=False
-tick=0
-tick_time=4
+    def __init__(self, vector):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface([ball_r*2 for _ in range(2)])
+        screen = pygame.display.get_surface()
+        pygame.draw.circle(self.image, center=(ball_r//2,ball_r//2))
 
-def ball_collide():
-    mouse_pos = pygame.mouse.get_pos()
-return ballrect.collidepoint(mouse_pos)
+        self.area = screen.get_rect()
+        self.vector = vector
 
-while main_loop_running:
+    def update(self):
+        newpos = self.calcnewpos(self.rect,self.vector)
+        self.rect = newpos
 
-    pygame.time.delay(1)
+    def calcnewpos(self,rect,vector):
+        (angle,z) = vector
+        (dx,dy) = (z*math.cos(angle),z*math.sin(angle))
+        return rect.move(dx,dy)
+
+ball = Ball((1,1))
+
+updates = [ball]
+
+while run_main:
+
+    pygame.time.delay(6)
 
     for event in pygame.event.get():
-        if event.type == pygame.QUIT: main_loop_running=False
+        if event.type == pygame.QUIT: run_main=False
 
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if ball_collide(): running_away=True
+    if event.type == pygame.MOUSEBUTTONDOWN:
+        pass
 
-        if running_away:
-            print(tick)
-            if tick == 0:
-                speed[0] *= -10
-                speed[1] *= -10
-                tick=0
-
-            elif tick >= tick_time:
-                running_away=False
-                tick=0 
-                speed[0] *= .95
-                speed[1] *= .95
-            else:
-                tick+=1
-
-    ballrect = ballrect.move(speed)
     if ballrect.left < 0 or ballrect.right > width:
         speed[0] = -speed[0]
     if ballrect.top < 0 or ballrect.bottom > height:
         speed[1] = -speed[1]
+
+    [x.update for x in updates]
 
     screen.fill("black")
     screen.blit(ball, ballrect)
