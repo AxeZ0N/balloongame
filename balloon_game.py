@@ -1,63 +1,133 @@
-import sys, pygame
+import pygame
 import random
+from collections import namedtuple as nt
 
-pygame.init()
-
-size = width, height = 1920, 1080
-speed = [1,1]
-
-ball_r = 35
-
-screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
-pygame.mouse.set_visible(False)
-
-run_main = True
+from pygame._sdl2.touch import *
+global BALL_R
+BALL_R = 50
+BALL_TIMER = 750
+SURFACE_R = BALL_R*4
+WIDTH, HEIGHT = 1920, 1080
 
 class Ball(pygame.sprite.Sprite):
-    """A ball that will move across the screen
-    Returns: ball object
-    Functions: update, calcnewpos
-    Attributes: area, vector"""
-
-    def __init__(self, vector):
+    def __init__(self, *args, **kwargs):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.Surface([ball_r*2 for _ in range(2)])
-        screen = pygame.display.get_surface()
-        pygame.draw.circle(self.image, center=(ball_r//2,ball_r//2))
-
+        self.image = pygame.Surface([SURFACE_R,SURFACE_R], pygame.SRCALPHA)
+        pygame.draw.circle(self.image, "white", (SURFACE_R/2,SURFACE_R/2), BALL_R)
+        self.rect = self.image.get_rect()
+        self.move_delta = [8,8]
+        self.base_speed = 8
+        self.pos = [self.rect.x, self.rect.y]
         self.area = screen.get_rect()
-        self.vector = vector
+
+        self.boost = 1.00
+        self.timer = False
 
     def update(self):
-        newpos = self.calcnewpos(self.rect,self.vector)
-        self.rect = newpos
+        self.bounce_off_wall()
 
-    def calcnewpos(self,rect,vector):
-        (angle,z) = vector
-        (dx,dy) = (z*math.cos(angle),z*math.sin(angle))
-        return rect.move(dx,dy)
+        self.rect = self.rect.move(self.move_delta)
+        self.pos = (self.rect.x, self.rect.y)
 
-ball = Ball((1,1))
+    def bounce_off_wall(self):
+        md = self.move_delta
+        WB = nt('WallBounceFlags', ['top','bottom','left','right'])
+        did_bounce = []
+        ### bound check bottom ###
+        if self.rect.bottom > self.area.bottom:
+            self.move_delta = (self.move_delta[0], -self.move_delta[1])
 
-updates = [ball]
+        ### bound check top ###
+        if self.rect.top < self.area.top:
+            self.move_delta = (self.move_delta[0], -self.move_delta[1])
 
-while run_main:
+        ### bound check left ###
+        if self.rect.left < self.area.left:
+            self.move_delta = (-self.move_delta[0], self.move_delta[1])
 
-    pygame.time.delay(6)
+        ### bound check right ###
+        if self.rect.right > self.area.right:
+            self.move_delta = (-self.move_delta[0], self.move_delta[1])
 
+        return True if self.move_delta != md else False
+
+    def on_click(self, pos):
+        if self.rect.collidepoint(pos): self.on_hit(pos)
+        else: self.on_miss(pos)
+
+    def on_hit(self, *args):
+        if self.timer: return
+        self.image.fill("black")
+        pygame.time.set_timer(MY_EVENT, BALL_TIMER)
+
+        self.move_delta = (100, 100)
+        self.timer=True
+
+    def on_miss(self, *args):
+        if self.timer: return
+        global BALL_R
+        if random.randint(0,3) % 3 == 0: BALL_R+=1
+        self.image.fill("black")
+        pygame.draw.circle(self.image, "white", (SURFACE_R/2,SURFACE_R/2), BALL_R)
+
+
+    def on_timer_up(self):
+        self.timer=False
+        self.move_delta = (random.randint(-8,9), random.randint(-8,9))
+        global BALL_R
+        if random.randint(0,1): BALL_R -= 1
+        else:
+            self.boost += 0.08
+            self.move_delta = (self.move_delta[0]*self.boost, self.move_delta[1]*self.boost)
+
+        pygame.time.set_timer(MY_EVENT, 0)
+        pygame.draw.circle(self.image, "white", (SURFACE_R/2,SURFACE_R/2), BALL_R)
+
+running = True
+
+
+pygame.init()
+screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
+bg = pygame.Surface(screen.get_size())
+pygame.mouse.set_visible(False)
+#bg = bg.convert()
+bg.fill("black")
+screen.blit(bg, (0,0))
+
+pygame.display.flip()
+
+ball = Ball()
+all_sprites = pygame.sprite.Group(ball, )
+clock = pygame.Clock()
+
+MY_EVENT = pygame.event.custom_type()
+
+BALL_TIMER_BASE = 1
+counter = BALL_TIMER_BASE
+
+
+while running:
+
+    clock.tick(60)
     for event in pygame.event.get():
-        if event.type == pygame.QUIT: run_main=False
+        if event.type == pygame.QUIT:
+            running = False
 
-    if event.type == pygame.MOUSEBUTTONDOWN:
-        pass
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            [c.on_click(event.pos) for c in all_sprites]
+            pygame.mouse.set_pos((0,0))
 
-    if ballrect.left < 0 or ballrect.right > width:
-        speed[0] = -speed[0]
-    if ballrect.top < 0 or ballrect.bottom > height:
-        speed[1] = -speed[1]
+        if event.type == MY_EVENT:
+            counter -= 1
+            if counter <= 0:
+                [c.on_timer_up() for c in all_sprites]
+                counter = BALL_TIMER_BASE
 
-    [x.update for x in updates]
 
-    screen.fill("black")
-    screen.blit(ball, ballrect)
+    all_sprites.update()
+
+    screen.blit(bg, (0,0))
+    all_sprites.draw(screen)
     pygame.display.flip()
+
+pygame.quit()
