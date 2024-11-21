@@ -53,10 +53,11 @@ class Ball(pygame.sprite.Sprite):
 
     def on_click(self, pos):
         if self.rect.collidepoint(pos): self.on_hit(pos)
-        else: self.on_miss(pos)
+        #else: self.on_miss(pos)
 
     def on_hit(self, *args):
         if self.timer: return
+        pygame.mouse.set_pos((0,0))
         self.image.fill("black")
         pygame.time.set_timer(MY_EVENT, BALL_TIMER)
 
@@ -87,7 +88,8 @@ running = True
 
 
 pygame.init()
-screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
+#screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
+screen = pygame.display.set_mode((WIDTH,HEIGHT))
 bg = pygame.Surface(screen.get_size())
 pygame.mouse.set_visible(False)
 #bg = bg.convert()
@@ -113,9 +115,8 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-        if event.type == pygame.MOUSEBUTTONDOWN:
+        if event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.MOUSEMOTION:
             [c.on_click(event.pos) for c in all_sprites]
-            pygame.mouse.set_pos((0,0))
 
         if event.type == MY_EVENT:
             counter -= 1
