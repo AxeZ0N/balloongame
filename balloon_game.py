@@ -4,9 +4,9 @@ from collections import namedtuple as nt
 
 from pygame._sdl2.touch import *
 global BALL_R
-BALL_R = 50
+BALL_R = 100
 BALL_TIMER = 750
-SURFACE_R = BALL_R*4
+SURFACE_R = BALL_R*2
 WIDTH, HEIGHT = 1920, 1080
 
 class Ball(pygame.sprite.Sprite):
@@ -15,6 +15,7 @@ class Ball(pygame.sprite.Sprite):
         self.image = pygame.Surface([SURFACE_R,SURFACE_R], pygame.SRCALPHA)
         pygame.draw.circle(self.image, "white", (SURFACE_R/2,SURFACE_R/2), BALL_R)
         self.rect = self.image.get_rect()
+        self.center = (SURFACE_R/2, SURFACE_R/2)
         self.move_delta = [8,8]
         self.base_speed = 8
         self.pos = [self.rect.x, self.rect.y]
@@ -24,7 +25,11 @@ class Ball(pygame.sprite.Sprite):
         self.timer = False
 
     def update(self):
-        self.bounce_off_wall()
+        hit_wall = self.bounce_off_wall()
+        if hit_wall:
+            color_list = ['yellow','red','green','blue','orange','white']
+            self.play_hit_fx(color_list=random.choice(color_list))
+
 
         self.rect = self.rect.move(self.move_delta)
         self.pos = (self.rect.x, self.rect.y)
@@ -61,8 +66,11 @@ class Ball(pygame.sprite.Sprite):
         self.image.fill("black")
         pygame.time.set_timer(MY_EVENT, BALL_TIMER)
 
-        self.move_delta = (100, 100)
+        self.move_delta = (75,75)
         self.timer=True
+
+    def play_hit_fx(self, *args, **kwargs):
+        pygame.draw.circle(self.image, kwargs.get('color_list', 'white'), self.center, BALL_R)
 
     def on_miss(self, *args):
         if self.timer: return
@@ -88,8 +96,8 @@ running = True
 
 
 pygame.init()
-#screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
-screen = pygame.display.set_mode((WIDTH,HEIGHT))
+screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
+#screen = pygame.display.set_mode((WIDTH,HEIGHT))
 bg = pygame.Surface(screen.get_size())
 pygame.mouse.set_visible(False)
 #bg = bg.convert()
@@ -108,9 +116,10 @@ BALL_TIMER_BASE = 1
 counter = BALL_TIMER_BASE
 
 
-while running:
 
+while running:
     clock.tick(60)
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -119,6 +128,8 @@ while running:
             [c.on_click(event.pos) for c in all_sprites]
 
         if event.type == MY_EVENT:
+            color_list = ['yellow','red','green','blue','orange','white']
+            ball.play_hit_fx(color_list=random.choice(color_list))
             counter -= 1
             if counter <= 0:
                 [c.on_timer_up() for c in all_sprites]
