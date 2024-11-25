@@ -22,19 +22,41 @@ def paws():
 
     return  [paws(*p.values()) for p in get_paws() if p is not None]
 
+def bounce(paw, ball):
+    v1 = pygame.math.Vector2(paw.rect.center)
+    v2 = pygame.math.Vector2(ball.rect.center)
+    r1 = paw.rect.width // 2
+    r2 = ball.rect.width // 2
+    d = v1.distance_to(v2)
+    if d < r1 + r2 - 2:
+        dnext = (v1).distance_to(v2 + ball.vel)
+        nv = v2 - v1
+        if dnext < d and nv.length() > 0:
+            #paw.vel = paw.vel.reflect(nv)
+            ball.vel = ball.vel.reflect(nv)
+            ball.vel *= 1.01
+
+        else:
+            if ball.vel.magnitude() < Vec(8,8).magnitude():
+                ball.vel *= 2
+            else:
+                ball.vel = Vec(8,8)
+
 
 colors = ['red','orange','yellow','green','blue','indigo','violet']
-
 
 class Ball(pygame.sprite.Sprite):
     def __init__(self,*args,**kwargs):
         pygame.sprite.Sprite.__init__(self)
         self.vel = Vec(5,5)
         self.move_delta = (self.vel.x,self.vel.y)
+        self.SPLAT = False
+        self.MAX_SPEED_VECTOR = kwargs.get("MAX_SPEED_VECTOR", Vec(8,8).magnitude())
 
         self.curr_color = "white"
 
-        self.BALL = 75
+        self.BALL_R = kwargs.get('BALL_R', None)
+        self.BALL = self.BALL_R if self.BALL_R is not None else 75
         self.radius = self.BALL
         self.image = pygame.Surface([self.BALL * 2, self.BALL * 2], pygame.SRCALPHA)
 
@@ -42,6 +64,7 @@ class Ball(pygame.sprite.Sprite):
 
         self.rect = self.image.get_rect()
         self.area = screen.get_rect()
+        self.end_ticks = 0
 
     def draw_(self):
         pygame.draw.circle(self.image,
@@ -52,11 +75,11 @@ class Ball(pygame.sprite.Sprite):
 
         pygame.draw.rect(self.image,
                          'black',
-                         pygame.Rect(self.BALL,-self.BALL-3, 3, self.BALL*4))
+                         pygame.Rect(self.BALL,-self.BALL-5, 5, self.BALL*4))
 
         pygame.draw.rect(self.image,
                          'black',
-                         pygame.Rect(-self.BALL-3,self.BALL, self.BALL*4, 3))
+                         pygame.Rect(-self.BALL-5,self.BALL, self.BALL*4, 5))
 
     def clean(self):
         pygame.draw.circle(self.image, pygame.SRCALPHA, (self.BALL, self.BALL), self.BALL)
@@ -77,27 +100,19 @@ class Ball(pygame.sprite.Sprite):
         self.rect.x += self.vel.x
         self.rect.y += self.vel.y
 
+        self.move_ball()
+
     def move_ball(self):
         self.rect.x += self.vel.x
         self.rect.y += self.vel.y
 
-    def collide(self,event=False):
+        if self.vel.magnitude() > self.MAX_SPEED_VECTOR:
+            self.vel *= 0.96
+
+    def collide(self,event=None):
         for p in paws():
             if pygame.sprite.collide_circle(p,self):
-                if p.rect.x - self.rect.x > 0 and p.rect.y - self.rect.y > 0:
-                    self.vel = self.vel.reflect(Vec(0,0))
-
-                if p.rect.x - self.rect.x > 0 and p.rect.y - self.rect.y < 0:
-                    self.vel = self.vel.reflect(Vec(1,1))
-
-                if p.rect.x - self.rect.x > 0 and p.rect.y - self.rect.y > 0:
-                    self.vel = self.vel.reflect(Vec(1,1))
-
-                if p.rect.x - self.rect.x > 0 and p.rect.y - self.rect.y < 0:
-                    self.vel = self.vel.reflect(Vec(1,1))
-
-                self.rect.x *= 1.1
-                self.rect.y *= 1.1
+                bounce(p,self)
 
 
 class Paw(pygame.sprite.Sprite):
@@ -148,10 +163,10 @@ class Paw(pygame.sprite.Sprite):
 
 
 pygame.init()
-size = (720,512)
-screen = pygame.display.set_mode(size)
-#size = (1920,1080)
-#screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
+#size = (720,512)
+#screen = pygame.display.set_mode(size)
+size = (1920,1080)
+screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
 bg = pygame.Surface(screen.get_size())
 pygame.mouse.set_visible(False)
 bg.fill("black")
@@ -161,7 +176,7 @@ pygame.display.flip()
 
 
 cokes = [Paw(index=x) for x in range(5)]
-balls = [Ball() for _ in range(1)]
+balls = [Ball(MAX_SPEED_VECTOR=Vec(7,7).magnitude(), BALL_R=150) for _ in range(1)]
 all_sprites = pygame.sprite.Group(cokes, balls)
 clock = pygame.Clock()
 running = True
@@ -176,6 +191,7 @@ while running:
             all_sprites.remove(Paw())
 
         [s.collide(pygame.mouse.get_pos()) for s in all_sprites]
+
 
 
     all_sprites.update()
